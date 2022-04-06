@@ -32,7 +32,7 @@ add_library(
 )
 target_include_directories( 
     ${target} PUBLIC 
-    ${MPI_INCLUDE_DIRS}
+    ${MPI_C_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/include 
 )
 target_link_libraries( 
