@@ -39,7 +39,10 @@ efile="${ename}.err"
 
 
 export OMPI_MCA_btl_openib_allow_ib=1
-mpirun -np 3 $exe 1>$ofile 2>$efile
+mpirun \
+    -np 3 \
+    --oversubscribe \
+    $exe 1>$ofile 2>$efile
 
 cat $ofile $efile 
 
