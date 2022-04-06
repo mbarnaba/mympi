@@ -15,12 +15,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+  
+    - name: MPI
+      run: sudo apt-get update && sudo apt-get install openmpi-bin openmpi-common libopenmpi-dev
 
     - name: build
       run: ./main.sh 
-
-    - name: MPI
-      run: sudo apt-get update && sudo apt-get install openmpi-bin openmpi-common libopenmpi-dev
 
     - name: test
       working-directory: ${{github.workspace}}/build
