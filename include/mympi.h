@@ -25,6 +25,7 @@ struct pMpiDistribution;
 
 void mpi_distribution_init(MpiDistribution* distrp, const MpiState state, unsigned total, unsigned belm); 
 void mpi_distribution_free(MpiDistribution distr); 
+void mpi_distribution_print(const MpiDistribution distr); 
 
 unsigned mpi_distribution_bcount(const MpiDistribution distr, unsigned rank); 
 unsigned mpi_distribution_boffset(const MpiDistribution distr, unsigned rank); 
@@ -33,9 +34,9 @@ unsigned mpi_distribution_btotal(const MpiDistribution distr);
 void mpi_distribution_scale(MpiDistribution distr, int factor); 
 
 
-int mpi_scatterv(const MpiDistribution distr, void* dst, const void* src); 
-int mpi_gatherv(const MpiDistribution distr, void* dst, const void* src); 
-int mpi_gather_allv(const MpiDistribution distr, void* dst, const void* src); 
+int mpi_scatterv(const MpiDistribution distr, unsigned root, const void* src, void* dst); 
+int mpi_gatherv(const MpiDistribution distr, unsigned root, const void* src, void* dst); 
+int mpi_gather_allv(const MpiDistribution distr, const void* src, void* dst); 
 
 
 struct pMpiTimer;  

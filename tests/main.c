@@ -30,45 +30,44 @@ static void test_distribution(const MpiState state) {
 
     TYPE* global = malloc( btotal ); 
     TYPE* local = malloc( bcount ); 
+
+    // initialize local
     for (unsigned idx = 0; idx < count; idx++) {
         local[ idx ] = rank; 
     }
-    
-    // mpi_gather_allv
-    mpi_gather_allv( distr, global, local ); 
-    printf( "global for rank %d: ", rank ); 
-    vector_print( global, total ); 
     printf( "local for rank %d: ", rank ); 
     vector_print( local, count ); 
-
     
-    if (rank == 0) {
+    const int master = 0; 
+    // mpi_gatherv will populate global for the master 
+    mpi_distribution_print( distr ); 
+    mpi_gatherv( distr, master, local, global ); 
+    // let's check, for the master only (for other ranks we would print garbage)
+    if (rank == master) {
+        printf( "global for rank %d: ", rank ); 
+        vector_print( global, total ); 
+
+        // master will modify global before scattering back to all ranks 
         for (unsigned idx = 0; idx < total; idx++) {
             global[ idx ] += 1; 
         }
-        printf( "global for rank %d: ", rank ); 
-        vector_print( global, total ); 
-    } 
+    }
 
-    // mpi_scatterv
-    mpi_scatterv( distr, local, global ); 
+    mpi_scatterv( distr, master, global, local ); 
+    // now local should be modified (+1), let's check
     printf( "local for rank %d: ", rank ); 
     vector_print( local, count ); 
 
-
-    // mpi_gatherv
+    // all ranks will now modify local and call mpi_gather_allv
     for (unsigned idx = 0; idx < count; idx++) {
         local[ idx ] += 1; 
-    }
-    printf( "local for rank %d: ", rank ); 
-    vector_print( local, count ); 
-
-    mpi_gatherv( distr, global, local );  
-    if (rank == 0) {
-        printf( "global for rank %d: ", rank ); 
-        vector_print( global, total ); 
-    }
-
+    } 
+    // reading from local and writing to global
+    mpi_gather_allv( distr, local, global ); 
+    // now global should be modified (+1), let's check
+    printf( "global for rank %d: ", rank ); 
+    vector_print( global, total ); 
+    
     mpi_distribution_free( distr ); 
 }
 

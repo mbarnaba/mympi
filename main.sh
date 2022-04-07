@@ -1,10 +1,11 @@
 #! /bin/bash 
 
 
-module purge
-module load gcc cmake 
-module load openmpi/4.0.1/gcc/8.2.0-2wc6vws
-
+if which module; then
+    module purge
+    module load gcc cmake 
+    module load openmpi/4.0.1/gcc/8.2.0-2wc6vws
+fi
 
 mkdir -p build
 cd build 

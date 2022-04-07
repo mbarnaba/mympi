@@ -26,11 +26,12 @@ repeat() {
 
 exe="$1"
 
-module purge
-module load gcc cmake 
-module load openmpi/4.0.1/gcc/8.2.0-2wc6vws
-
-env > env
+if which module; then
+    module purge
+    module load gcc cmake 
+    module load openmpi/4.0.1/gcc/8.2.0-2wc6vws
+    env > env
+fi
 
 
 ename="$( basename $exe )"
@@ -39,9 +40,9 @@ efile="${ename}.err"
 
 
 export OMPI_MCA_btl_openib_allow_ib=1
+#--oversubscribe \
 mpirun \
     -np 3 \
-    --oversubscribe \
     $exe 1>$ofile 2>$efile
 
 cat $ofile $efile 
@@ -52,27 +53,54 @@ for rank in 1 2; do
     otest "rank ${rank}: received 10 bytes from 0, the message is hello!"
 done
 
-echo "distribuition and mpi_gather_allv"
+
+echo "mpi_gatherv"
 for rank in 0 1 2; do
-    times=33
-    (( rank < 1 )) && times=34
+    pattern="distribuition (rank ${rank}): (136 0) (132 136) (132 268)"
+    otest "$pattern"
 
-    pattern="$( repeat $rank $times )"
-    otest "local for rank ${rank}: ${pattern}"
+    count=33
+    (( rank < 1 )) && count=34 
+    pattern="rank ${rank}: bcount = $(( count * 4 )), count = ${count}"
+    otest "$pattern"
 
-    pattern="$( repeat 0 34 )$( repeat 1 33 )$( repeat 2 33 )"
-    otest "global for rank ${rank}: ${pattern}"
+    if (( rank == 0 )); then
+        pattern=''
+        for rank2 in 0 1 2; do
+            times=33
+            (( rank2 < 1 )) && times=34
+            pattern="${pattern}$( repeat $rank2 $times )"
+        done
+
+        pattern="global for rank 0: ${pattern}"
+        otest "$pattern"
+    fi
 done 
 
 
-echo "mpi_scatterv" 
-pattern="$( repeat 1 34 )$( repeat 2 33 )$( repeat 3 33 )"
-otest "global for rank 0: ${pattern}"
-
+echo "mpi_scatterv"
 for rank in 0 1 2; do
     times=33
     (( rank < 1 )) && times=34
-
+    
     pattern="$( repeat $(( rank + 1 )) $times )"
-    otest "local for rank ${rank}: ${pattern}"
-done
+    pattern="local for rank ${rank}: ${pattern}"
+    otest "$pattern"
+done 
+
+
+echo "mpi_gather_allv"
+for rank in 0 1 2; do
+    times=33
+    (( rank < 1 )) && times=34
+    
+    pattern=''
+    for rank2 in 0 1 2; do
+        times2=33
+        (( rank2 < 1 )) && times2=34
+        pattern="${pattern}$( repeat $(( rank2 + 2 )) $times2 )"
+    done
+
+    pattern="global for rank ${rank}: ${pattern}"
+    otest "$pattern"
+done 

@@ -5,7 +5,6 @@
 
 
 #define TAG (0)
-#define COMMUNICATOR MPI_COMM_WORLD
 #define MASTER_RANK (0)
 
 
@@ -17,18 +16,18 @@ struct pMpiState {
 int mpi_initialize(MpiState* statep) {
     MpiState state = malloc( sizeof(struct pMpiState) ); 
     *statep = state; 
-
-    state->comm = COMMUNICATOR; 
-
+    
     int ret = MPI_Init( NULL, NULL );
+
+    state->comm = MPI_COMM_WORLD; 
+
     ret = MPI_Comm_size( state->comm, &state->ranks ); 
     ret = MPI_Comm_rank( state->comm, &state->rank ); 
     return ret; 
 }
 int mpi_finalize(MpiState state) {  
     free( state );
-    MPI_Finalize(); 
-    return 0; 
+    return MPI_Finalize(); 
 }
 
 
@@ -54,22 +53,22 @@ void mpi_recv(const MpiState state, void* data, int bytes, int from) {
 
 struct pMpiDistribution {
     const MpiState state; 
-    unsigned* bcounts; 
-    unsigned* boffsets; 
+    int* bcounts; 
+    int* boffsets; 
 }; 
 void mpi_distribution_init(MpiDistribution* distrp, const MpiState state, unsigned total, unsigned belm) {
-    struct pMpiDistribution tmp = { .state = state }; 
+    const struct pMpiDistribution tmp = { .state = state }; 
 
     MpiDistribution distr = malloc( sizeof(struct pMpiDistribution) );  
     *distrp = distr; 
     memcpy( distr, &tmp, sizeof(struct pMpiDistribution) ); 
 
-    const unsigned ranks = state->ranks; 
+    const unsigned ranks = mpi_ranks( state );
     const unsigned perrank = total / ranks; 
     const unsigned remainder = total - (perrank * ranks); 
 
     distr->bcounts = malloc( 2 * sizeof(unsigned) * ranks ); 
-    distr->boffsets = distr->bcounts + (sizeof(unsigned) * ranks); 
+    distr->boffsets = distr->bcounts + ranks; 
     
     for (unsigned idx = 0; idx < ranks; idx++) {
         distr->bcounts[ idx ] = perrank * belm; 
@@ -88,6 +87,20 @@ void mpi_distribution_free(MpiDistribution distr) {
     free( distr->bcounts ); 
     free( distr ); 
 }
+
+void mpi_distribution_print(const MpiDistribution distr) {
+    const unsigned ranks = mpi_ranks( distr->state );
+    printf( "distribuition (rank %d): ", mpi_rank( distr->state ) ); 
+    for (unsigned rank = 0; rank < ranks; rank++) {
+        printf(
+            "(%d %d) ", 
+            mpi_distribution_bcount( distr, rank ), 
+            mpi_distribution_boffset( distr, rank )
+        ); 
+    }
+    printf( "\n" ); 
+}
+
 
 unsigned mpi_distribution_bcount(const MpiDistribution distr, unsigned rank) {
     return distr->bcounts[ rank ]; 
@@ -126,34 +139,114 @@ void mpi_distribution_scale(MpiDistribution distr, int factor) {
 }
 
 
-int mpi_scatterv(const MpiDistribution distr, void* dst, const void* src) {
-    const unsigned ranks = mpi_ranks( distr->state ); 
-    const unsigned total = distr->bcounts[ ranks - 1 ] + distr->boffsets[ ranks - 1 ];  
+int mpi_scatterv(const MpiDistribution distr, unsigned root, const void* src, void* dst) {
+    const int recvcount = mpi_distribution_btotal( distr ); 
+    //const int rank = mpi_rank( distr->state ); 
+    //printf( "mpi_scatterv rank %d recvcount %d from %d \n", rank, recvcount, root ); 
+    //mpi_distribution_print( distr ); 
 
-    // https://www.mpich.org/static/docs/v3.1/www3/MPI_Scatterv.html
+    /*
+    int MPI_Scatterv(
+        const void *sendbuf, 
+        const int sendcounts[], const int displs[],
+        MPI_Datatype sendtype, 
+        void *recvbuf, int recvcount,
+        MPI_Datatype recvtype, 
+        int root, MPI_Comm comm
+    )
+    */
     return MPI_Scatterv(
-        src, (const int*)distr->bcounts, (const int*)distr->boffsets, MPI_CHAR, dst, total, MPI_CHAR, MASTER_RANK, distr->state->comm 
+        src, 
+        distr->bcounts, 
+        distr->boffsets, 
+        MPI_CHAR, 
+        dst, 
+        recvcount, 
+        MPI_CHAR, 
+        root, 
+        distr->state->comm
+    ); 
+}
+int mpi_scatter(const MpiState state, unsigned total, unsigned root, const void *src, void* dst) {
+    /* 
+    https://www.open-mpi.org/doc/v4.1/man3/MPI_Scatter.3.php
+          
+    int MPI_Scatter(
+        const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+        void *recvbuf, int recvcount, MPI_Datatype recvtype, 
+        int root, MPI_Comm comm
+    )
+    */
+
+    const unsigned ranks = mpi_ranks( state ); 
+    const unsigned recvcount = total / ranks; 
+    return MPI_Scatter(
+        src, 
+        total,
+        MPI_CHAR, 
+        dst, 
+        recvcount,
+        MPI_CHAR, 
+        root, 
+        state->comm
     ); 
 }
 
-int mpi_gatherv(const MpiDistribution distr, void* dst, const void* src) {
-    const unsigned sendcount = distr->bcounts[ mpi_rank(distr->state) ];  
 
-    // https://www.mpich.org/static/docs/v3.1/www3/MPI_Gatherv.html
+int mpi_gatherv(const MpiDistribution distr, unsigned root, const void* src, void* dst) {
+    const unsigned rank = mpi_rank( distr->state ); 
+    const int sendcount = mpi_distribution_bcount( distr, rank ); 
+    //printf( "mpi_gatherv rank %d sendcount %d to %d \n", rank, sendcount, root ); 
+    //mpi_distribution_print( distr ); 
+
+    /* 
+    https://www.open-mpi.org/doc/v4.1/man3/MPI_Gatherv.3.php 
+          
+    int MPI_Gatherv(
+        const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+        void *recvbuf, const int recvcounts[], const int displs[], MPI_Datatype
+        recvtype,
+        int root, MPI_Comm comm
+    )
+    */
     return MPI_Gatherv(
-        src, sendcount, MPI_CHAR, dst, (const int*)distr->bcounts, (const int*)distr->boffsets, MPI_CHAR, MASTER_RANK, distr->state->comm
+        src, 
+        sendcount, 
+        MPI_CHAR, 
+        dst, 
+        distr->bcounts, 
+        distr->boffsets, 
+        MPI_CHAR, 
+        root, 
+        distr->state->comm
     ); 
 }
 
-int mpi_gather_allv(const MpiDistribution distr, void* dst, const void* src) {
-    const unsigned sendcount = mpi_distribution_bcount( 
-        distr, mpi_rank(distr->state) 
-    );  
-    
-    // https://www.mpich.org/static/docs/v3.2/www3/MPI_Allgatherv.html
+int mpi_gather_allv(const MpiDistribution distr, const void* src, void* dst) {
+    const unsigned rank = mpi_rank( distr->state ); 
+    const int sendcount = mpi_distribution_bcount( distr, rank ); 
+    //printf( "mpi_gather_allv rank %d sendcount %d \n", rank, sendcount ); 
+    //mpi_distribution_print( distr ); 
+
+    /*
+    https://www.open-mpi.org/doc/v4.1/man3/MPI_Allgatherv.3.php
+
+    int MPI_Allgatherv(
+        const void *sendbuf, int sendcount, MPI_Datatype sendtype, 
+        void *recvbuf, const int recvcounts[], const int displs[], MPI_Datatype recvtype, 
+        MPI_Comm comm
+    );
+    */
     return MPI_Allgatherv(
-        src, sendcount, MPI_CHAR, dst, (const int*)distr->bcounts, (const int*)distr->boffsets, MPI_CHAR, distr->state->comm
-    );  
+        src, 
+        sendcount, 
+        MPI_CHAR, 
+        dst, 
+        distr->bcounts, 
+        distr->boffsets, 
+        MPI_CHAR, 
+        distr->state->comm
+    ); 
 } 
 
 
