@@ -26,13 +26,10 @@ repeat() {
 
 exe="$1"
 
-if which module; then
-    module purge
-    module load gcc cmake 
-    module load openmpi/4.0.1/gcc/8.2.0-2wc6vws
-    env > env
-fi
-
+module purge
+module load gcc cmake 
+module load openmpi/4.0.1/gcc/8.2.0-2wc6vws
+env > env
 
 ename="$( basename $exe )"
 ofile="${ename}.out"
@@ -40,9 +37,9 @@ efile="${ename}.err"
 
 
 export OMPI_MCA_btl_openib_allow_ib=1
-#--oversubscribe \
 mpirun \
     -np 3 \
+    --oversubscribe \
     $exe 1>$ofile 2>$efile
 
 cat $ofile $efile 
