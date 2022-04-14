@@ -13,7 +13,7 @@ add_compile_options(
 
 
 option( verbose_make "make make verbose" ON )
-option( testing "enable_testing" ON )
+option( testing "enable_testing" OFF )
 
 if( verbose_make ) 
     message( STATUS "making make verbose" )
