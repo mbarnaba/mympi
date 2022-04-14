@@ -273,3 +273,6 @@ double mpi_timer_stop(MpiTimer timer) {
 double mpi_timer_seconds(const MpiTimer timer) {
     return timer->seconds; 
 }
+double mpi_timer_total(const MpiTimer timer) {
+    return mpi_timer_seconds( timer ); 
+}
