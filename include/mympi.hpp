@@ -71,6 +71,27 @@ class Handle {
             from 
         ); 
     }
+
+    
+    template <typename T>
+    void bcast(T* buffer, unsigned count, unsigned root=0) const {
+        mpi_bcast(
+            self.cstate, 
+            (void*) buffer, 
+            count * sizeof(T), 
+            root
+        ); 
+    }
+    
+
+    void sum_all(const double* src, double* dst, unsigned count) const {
+        mpi_dsum_all( 
+            self.cstate, 
+            count, 
+            src, 
+            dst
+        );
+    }
 }; 
 
 
@@ -178,7 +199,7 @@ class Distribution {
             src, 
             dst
         ); 
-    }
+    }    
 };  
 
 template <typename T>

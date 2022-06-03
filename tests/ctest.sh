@@ -40,7 +40,7 @@ export OMPI_MCA_btl_openib_allow_ib=1
 mpirun \
     -np 3 \
     --oversubscribe \
-    $exe 1>$ofile 2>$efile
+    $exe 1>$ofile 2>$efile || exit 1
 
 cat $ofile $efile 
 

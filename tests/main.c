@@ -72,6 +72,29 @@ static void test_distribution(const MpiState state) {
 }
 
 
+void test_reduce(const MpiState state) {
+    const unsigned count = 128; 
+
+    double src[ count ]; 
+    double dst[ count ]; 
+    
+    for (unsigned i=0; i < count; i++) {
+        src[ i ] = mpi_rank( state ); 
+    }
+    
+    mpi_dsum_all( state, count, src, dst );     
+
+    const double expected = mpi_ranks( state ); 
+
+    for (unsigned i=0; i < count; i++) {
+        if ( dst[ i ] != expected ) {
+            printf( "did not found expected value after mpi_dsum_all!" );
+            exit( 1 ); 
+        }
+    }
+} 
+
+
 int main(void) {
     MpiState state;
     mpi_initialize( &state );
@@ -93,6 +116,9 @@ int main(void) {
         mpi_recv( state, (void*) msg, 10, from ); 
         printf( "rank %d: received 10 bytes from %d, the message is %s\n", rank, from, msg ); 
     }
+
+
+    test_reduce( state ); 
 
     test_distribution( state ); 
 

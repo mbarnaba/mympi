@@ -18,6 +18,7 @@ int mpi_ranks(const MpiState state);
 
 void mpi_send(const MpiState state, const void* data, int bytes, int to); 
 void mpi_recv(const MpiState state, void* data, int bytes, int from); 
+int mpi_bcast(const MpiState state, void* data, unsigned bytes, unsigned root); 
 
 
 struct pMpiDistribution; 
@@ -37,6 +38,10 @@ void mpi_distribution_scale(MpiDistribution distr, int factor);
 int mpi_scatterv(const MpiDistribution distr, unsigned root, const void* src, void* dst); 
 int mpi_gatherv(const MpiDistribution distr, unsigned root, const void* src, void* dst); 
 int mpi_gather_allv(const MpiDistribution distr, const void* src, void* dst); 
+
+
+// a wrapper for sum MPI_Allreduce for doubles 
+int mpi_dsum_all(const MpiState state, unsigned count, const void *src, void* dst); 
 
 
 struct pMpiTimer;  

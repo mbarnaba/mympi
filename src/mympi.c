@@ -8,6 +8,9 @@
 #define MASTER_RANK (0)
 
 
+static unsigned active_instances = 0; 
+
+
 struct pMpiState {
     int rank; 
     int ranks; 
@@ -17,7 +20,11 @@ int mpi_initialize(MpiState* statep) {
     MpiState state = malloc( sizeof(struct pMpiState) ); 
     *statep = state; 
     
-    int ret = MPI_Init( NULL, NULL );
+    int ret; 
+    if ( active_instances == 0 ) {
+        ret = MPI_Init( NULL, NULL );
+    }
+    active_instances++;
 
     state->comm = MPI_COMM_WORLD; 
 
@@ -27,7 +34,12 @@ int mpi_initialize(MpiState* statep) {
 }
 int mpi_finalize(MpiState state) {  
     free( state );
-    return MPI_Finalize(); 
+        
+    active_instances--; 
+    if ( active_instances == 0 ) { 
+        return MPI_Finalize(); 
+    }
+    return 0;  
 }
 
 
@@ -47,6 +59,24 @@ void mpi_send(const MpiState state, const void* data, int bytes, int to) {
 void mpi_recv(const MpiState state, void* data, int bytes, int from) {
     MPI_Recv(
         data, bytes, MPI_CHAR, from, TAG, state->comm, NULL
+    ); 
+}
+
+
+int mpi_bcast(const MpiState state, void* data, unsigned bytes, unsigned root) {
+    /*
+    int MPI_Bcast(
+        void *buffer, int count, MPI_Datatype datatype,
+        int root, 
+        MPI_Comm comm
+    )
+    */
+    return MPI_Bcast(
+        data, 
+        bytes, 
+        MPI_CHAR, 
+        root, 
+        state->comm
     ); 
 }
 
@@ -248,6 +278,27 @@ int mpi_gather_allv(const MpiDistribution distr, const void* src, void* dst) {
         distr->state->comm
     ); 
 } 
+
+
+int mpi_dsum_all(const MpiState state, unsigned count, const void *src, void* dst) {
+    /*
+    https://www.open-mpi.org/doc/v3.0/man3/MPI_Allreduce.3.php
+
+    int MPI_Allreduce(
+        const void *sendbuf, void *recvbuf, int count,
+        MPI_Datatype datatype, MPI_Op op, 
+        MPI_Comm comm
+    )
+    */
+    return MPI_Allreduce(
+        (const void*) src, 
+        (void*) dst, 
+        count, 
+        MPI_DOUBLE, 
+        MPI_SUM, 
+        state->comm
+    ); 
+}
 
 
 struct pMpiTimer {
