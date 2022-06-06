@@ -56,7 +56,7 @@ class Handle {
     void send(const T* src, unsigned count, unsigned to) const {
         mpi_send( 
             self.cstate, 
-            (const void*) src, 
+            static_cast<const void*>(src), 
             count * sizeof(T), 
             to 
         ); 
@@ -66,7 +66,7 @@ class Handle {
     void receive(T* dst, unsigned count, unsigned from) const {
         mpi_recv( 
             self.cstate, 
-            (void*) dst, 
+            static_cast<void*>(dst), 
             count * sizeof(T), 
             from 
         ); 
@@ -77,7 +77,7 @@ class Handle {
     void bcast(T* buffer, unsigned count, unsigned root=0) const {
         mpi_bcast(
             self.cstate, 
-            (void*) buffer, 
+            static_cast<void*>(buffer), 
             count * sizeof(T), 
             root
         ); 
@@ -86,6 +86,14 @@ class Handle {
 
     void sum_all(const double* src, double* dst, unsigned count) const {
         mpi_dsum_all( 
+            self.cstate, 
+            count, 
+            src, 
+            dst
+        );
+    }
+    void sum_all(const int* src, int* dst, unsigned count) const {
+        mpi_isum_all( 
             self.cstate, 
             count, 
             src, 
@@ -188,16 +196,16 @@ class Distribution {
         mpi_gatherv(
             self.cdistr, 
             root, 
-            src, 
-            dst
+            static_cast<const void*>(src), 
+            static_cast<void*>(dst)
         ); 
     }
 
     void gather_all(const T* src, T* dst) const {
         mpi_gather_allv(
             self.cdistr, 
-            src, 
-            dst
+            static_cast<const void*>(src), 
+            static_cast<void*>(dst)
         ); 
     }    
 };  

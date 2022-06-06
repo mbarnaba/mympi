@@ -280,7 +280,7 @@ int mpi_gather_allv(const MpiDistribution distr, const void* src, void* dst) {
 } 
 
 
-int mpi_dsum_all(const MpiState state, unsigned count, const void *src, void* dst) {
+int mpi_dsum_all(const MpiState state, unsigned count, const double* src, double* dst) {
     /*
     https://www.open-mpi.org/doc/v3.0/man3/MPI_Allreduce.3.php
 
@@ -295,6 +295,16 @@ int mpi_dsum_all(const MpiState state, unsigned count, const void *src, void* ds
         (void*) dst, 
         count, 
         MPI_DOUBLE, 
+        MPI_SUM, 
+        state->comm
+    ); 
+}
+int mpi_isum_all(const MpiState state, unsigned count, const int* src, int* dst) {
+    return MPI_Allreduce(
+        (const void*) src, 
+        (void*) dst, 
+        count, 
+        MPI_INT, 
         MPI_SUM, 
         state->comm
     ); 

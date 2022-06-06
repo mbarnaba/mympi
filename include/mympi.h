@@ -41,7 +41,8 @@ int mpi_gather_allv(const MpiDistribution distr, const void* src, void* dst);
 
 
 // a wrapper for sum MPI_Allreduce for doubles 
-int mpi_dsum_all(const MpiState state, unsigned count, const void *src, void* dst); 
+int mpi_dsum_all(const MpiState state, unsigned count, const double* src, double* dst); 
+int mpi_isum_all(const MpiState state, unsigned count, const int* src, int* dst); 
 
 
 struct pMpiTimer;  
