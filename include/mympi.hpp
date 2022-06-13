@@ -13,27 +13,55 @@ extern "C" {
 
 namespace mympi {
 
+template <class T>
+class Distribution; 
+
 class Handle {
+    template <class T>
+    friend class Distribution; 
+    
+    MpiState cstate{ nullptr }; 
     unsigned mrank{ 0 };
     unsigned mranks{ 0 }; 
 
     public:
-    MpiState cstate; 
-
-    Handle() {
+    Handle() 
+    {
         mpi_initialize( &self.cstate ); 
         self.mrank = mpi_rank( self.cstate ); 
         self.mranks = mpi_ranks( self.cstate ); 
+
         $log( 
-            "Handle for process", self.rank() + 1, "(rank ", 
-            self.rank(), ") of", self.ranks(), "successfuly initialized"
+            "Handle for process", self.rank() + 1, 
+            "(rank ", self.rank(), ") of", self.ranks(), 
+            "successfuly initialized"
         ); 
     }
+
+    Handle(const Handle&) = delete;
+    Handle& operator = (const Handle&) = delete; 
+     
+    Handle& operator = (Handle&& rhs) noexcept
+    {
+        self.disengage(); 
+        new (&self) Handle{ std::move(rhs) }; 
+        return self; 
+    }
+    Handle(Handle&& rhs) noexcept 
+        : Handle( rhs.cstate, rhs.rank(), rhs.ranks() )
+    {
+        rhs.disengage(); 
+    }
+
     ~Handle() {
+        if ( self.disengaged() ) 
+            return;
+
         mpi_finalize( self.cstate ); 
         $log( 
-            "Handle for process", self.rank() + 1, "(rank ", 
-            self.rank(), ") of", self.ranks(), "successfuly finalized"
+            "Handle for process", self.rank() + 1, 
+            "(rank ", self.rank(), ") of", self.ranks(), 
+            "successfuly finalized"
         ); 
     }
 
@@ -100,35 +128,77 @@ class Handle {
             dst
         );
     }
+
+    protected: 
+    Handle(MpiState cstate, unsigned rank, unsigned ranks) noexcept 
+        : cstate{ cstate },
+        mrank{ rank }, 
+        mranks{ ranks }
+    {}
+
+    void disengage() noexcept { self.cstate = nullptr; }
+    bool disengaged() const noexcept { return (self.cstate == nullptr); }
 }; 
 
 
 template <typename T>
 class Distribution {
-    MpiDistribution cdistr; 
-    const unsigned mtotal; 
-    const Handle* const mhandle; 
+    MpiDistribution cdistr{ nullptr }; 
+    const unsigned mtotal{ 0 }; 
+    const Handle* const mhandle{ nullptr }; 
     int mfactor{ 1 }; 
 
     public: 
     Distribution(const Handle* handle, unsigned total) 
-        : mtotal{ total }, mhandle{ handle }
+        : mtotal{ total }, 
+        mhandle{ handle }
     {
         mpi_distribution_init( 
             &self.cdistr, 
             self.handle().cstate, 
-            total, 
-            sizeof(T) 
+            self.total(), 
+            sizeof(T)
         ); 
+
         $log(
-            "Distribution with total", self.total(), "and factor", self.factor(), 
+            "Distribution with total", self.total(), 
+            "and factor", self.factor(), 
             "successfuly initialized"
         ); 
     }
+
+    // want to copy? use clone()
+    Distribution(const Distribution&) = delete; 
+    Distribution& operator = (const Distribution&) = delete; 
+    Distribution clone() const 
+    {
+        return Distribution{ self.mhandle, self.total() };
+    }
+
+    Distribution(Distribution&& rhs) noexcept 
+        : cdistr{ rhs.cdistr },
+        mtotal{ rhs.total() },
+        mhandle{ rhs.handle() }, 
+        mfactor{ rhs.factor() } 
+    {
+        rhs.disengage(); 
+    }
+    Distribution& operator = (Distribution&& rhs) noexcept 
+    {
+        self.disengage(); 
+        new (&self) Distribution{ std::move(rhs) }; 
+        return self; 
+    }
+
+
     ~Distribution() noexcept {
+        if ( self.disengaged() ) 
+            return;  
+
         mpi_distribution_free( self.cdistr ); 
         $log(
-            "Distribution with total", self.total(), "and factor", self.factor(), 
+            "Distribution with total", self.total(), 
+            "and factor", self.factor(), 
             "successfuly finalized"
         ); 
     }
@@ -208,6 +278,10 @@ class Distribution {
             static_cast<void*>(dst)
         ); 
     }    
+
+    protected: 
+    void disengage() noexcept { self.cdistr = nullptr; }
+    bool disengaged() const noexcept { return (self.cdistr == nullptr); }
 };  
 
 template <typename T>
