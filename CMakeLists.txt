@@ -3,7 +3,7 @@ cmake_minimum_required( VERSION 3.0 )
 project( mympi LANGUAGES C CXX )
 
 foreach( language IN ITEMS C CXX ) 
-    set( CMAKE_${language}_STANDARD 14 )
+    set( CMAKE_${language}_STANDARD 11 )
     set( CMAKE_${language}_EXTENSIONS OFF )
 endforeach()
 
