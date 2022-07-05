@@ -178,7 +178,7 @@ class Distribution {
     Distribution(Distribution&& rhs) noexcept 
         : cdistr{ rhs.cdistr },
         mtotal{ rhs.total() },
-        mhandle{ rhs.handle() }, 
+        mhandle{ &rhs.handle() }, 
         mfactor{ rhs.factor() } 
     {
         rhs.disengage(); 
@@ -196,6 +196,7 @@ class Distribution {
             return;  
 
         mpi_distribution_free( self.cdistr ); 
+        self.disengage(); 
         $log(
             "Distribution with total", self.total(), 
             "and factor", self.factor(), 
