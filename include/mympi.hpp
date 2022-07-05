@@ -149,6 +149,9 @@ class Distribution {
     int mfactor{ 1 }; 
 
     public: 
+    // ctor that creates disengaged Distribution, 
+    // may be useful for moving to it
+    Distribution() {}
     Distribution(const Handle* handle, unsigned total) 
         : mtotal{ total }, 
         mhandle{ handle }
